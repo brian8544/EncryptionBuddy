@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Telegram Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .container { 
+            margin: 20px 0; 
+        }
+        .hidden { 
+            display: none; 
+        }
+        textarea { 
+            width: 100%; 
+            height: 100px; 
+        }
+        button { 
+            padding: 10px 20px; 
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+        }
+        .message-container { 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            margin: 10px 0; 
+            max-height: 300px; 
+            overflow-y: auto; 
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage">
+        <h1>Secure Chat Login</h1>
+        <div class="container">
+            <label for="usernameLogin">Username:</label>
+            <input type="text" id="usernameLogin" placeholder="Enter your username">
+        </div>
+        <div class="container">
+            <label for="passwordLogin">Shared Password:</label>
+            <input type="password" id="passwordLogin" placeholder="Enter shared password">
+        </div>
+        <button onclick="login()">Join Chat</button>
+    </div>
+
+    <!-- Chat Page -->
+    <div id="chatPage" class="hidden">
+        <h1>Secure Telegram Chat</h1>
+        <div class="container">
+            <h3>Encrypted Messages</h3>
+            <div id="encryptedMessages" class="message-container"></div>
+        </div>
+
+        <div class="container">
+            <h3>Compose Message</h3>
+            <textarea id="messageInput" placeholder="Type your message"></textarea>
+        </div>
+
+        <button onclick="sendMessage()">Send Encrypted Message</button>
+
+        <h3>Decrypted Messages</h3>
+        <div id="decryptedMessages" class="message-container"></div>
+    </div>
+
+    <script>
+        let socket;
+        let username;
+        let password;
+
+        function login() {
+            username = document.getElementById('usernameLogin').value;
+            password = document.getElementById('passwordLogin').value;
+
+            if (!username || !password) {
+                alert('Please enter username and password');
+                return;
+            }
+
+            // Switch to chat page
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('chatPage').classList.remove('hidden');
+
+            // Establish WebSocket connection
+            socket = new WebSocket('ws://localhost:3000');
+
+            socket.onopen = () => {
+                console.log('WebSocket connection established');
+                // Send join message
+                socket.send(JSON.stringify({
+                    type: 'join',
+                    username: username
+                }));
+            };
+
+            socket.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'message') {
+                    // Add encrypted message to UI
+                    const encryptedContainer = document.getElementById('encryptedMessages');
+                    addMessageToContainer(encryptedContainer, `${data.username} says: ${data.message}`, true);
+
+                    // Try to decrypt
+                    try {
+                        await decryptMessage(data.username, data.message);
+                    } catch (error) {
+                        console.error('Decryption failed:', error);
+                    }
+                }
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        async function generateKey(password) {
+            const encoder = new TextEncoder();
+            const passwordBytes = encoder.encode(password);
+            const salt = window.crypto.getRandomValues(new Uint8Array(16));
+            const baseKey = await window.crypto.subtle.importKey(
+                'raw',
+                passwordBytes,
+                'PBKDF2',
+                false,
+                ['deriveBits', 'deriveKey']
+            );
+            const derivedKey = await window.crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                baseKey,
+                { name: 'AES-GCM', length: 256 },
+                true,
+                ['encrypt', 'decrypt']
+            );
+            return { key: derivedKey, salt: salt };
+        }
+
+        function formatTimestamp(date) {
+            return date.toLocaleTimeString() + ' ' + date.toLocaleDateString();
+        }
+
+        function addMessageToContainer(container, message, isEncrypted = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            const timestamp = formatTimestamp(new Date());
+            messageDiv.innerHTML = `
+                <span class="timestamp">[${timestamp}]</span><br>
+                ${message}
+            `;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+
+            if (!message) {
+                alert('Please enter a message.');
+                return;
+            }
+
+            try {
+                const { key, salt } = await generateKey(password);
+
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encoder = new TextEncoder();
+                const messageBytes = encoder.encode(message);
+
+                const encryptedData = await window.crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    messageBytes
+                );
+
+                const encryptedBase64 = btoa(String.fromCharCode(...new Uint8Array(encryptedData)));
+                const ivBase64 = btoa(String.fromCharCode(...iv));
+                const saltBase64 = btoa(String.fromCharCode(...salt));
+                const combined = `${encryptedBase64}|${ivBase64}|${saltBase64}`;
+                const combinedBase64 = btoa(combined);
+
+                // Send to WebSocket
+                socket.send(JSON.stringify({
+                    type: 'message',
+                    username: username,
+                    message: combinedBase64
+                }));
+
+                // Add encrypted message to UI
+                const encryptedContainer = document.getElementById('encryptedMessages');
+                addMessageToContainer(encryptedContainer, `${username} says: ${combinedBase64}`, true);
+
+                // Decrypt immediately
+                await decryptMessage(username, combinedBase64);
+
+                // Clear input
+                document.getElementById('messageInput').value = '';
+
+            } catch (error) {
+                console.error('Encryption failed:', error);
+            }
+        }
+
+        async function decryptMessage(senderUsername, combinedBase64) {
+            try {
+                const combined = atob(combinedBase64);
+                const [encryptedBase64, ivBase64, saltBase64] = combined.split('|');
+
+                const encryptedData = new Uint8Array(atob(encryptedBase64).split('').map(c => c.charCodeAt(0))).buffer;
+                const iv = new Uint8Array(atob(ivBase64).split('').map(c => c.charCodeAt(0)));
+                const salt = new Uint8Array(atob(saltBase64).split('').map(c => c.charCodeAt(0)));
+
+                const encoder = new TextEncoder();
+                const passwordBytes = encoder.encode(password);
+                const baseKey = await window.crypto.subtle.importKey(
+                    'raw',
+                    passwordBytes,
+                    'PBKDF2',
+                    false,
+                    ['deriveBits', 'deriveKey']
+                );
+
+                const key = await window.crypto.subtle.deriveKey(
+                    {
+                        name: 'PBKDF2',
+                        salt: salt,
+                        iterations: 100000,
+                        hash: 'SHA-256'
+                    },
+                    baseKey,
+                    { name: 'AES-GCM', length: 256 },
+                    true,
+                    ['decrypt']
+                );
+
+                const decryptedData = await window.crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    encryptedData
+                );
+
+                const decoder = new TextDecoder();
+                const decryptedMessage = decoder.decode(decryptedData);
+
+                // Add decrypted message to UI
+                const decryptedContainer = document.getElementById('decryptedMessages');
+                addMessageToContainer(decryptedContainer, `${senderUsername} says: ${decryptedMessage}`);
+
+            } catch (error) {
+                console.error('Decryption failed:', error);
+            }
+        }
+    </script>
+</body>
+</html>
