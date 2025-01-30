@@ -11,7 +11,7 @@ const wss = new WebSocket.Server({ server });
 
 // Telegram Bot Configuration
 const botToken = '7784972386:AAGmZwSekUBMAKDmf9OGwnHd5PVVj6t1ZHs';
-const chatId = '-4750838697';
+const chatId = '-4730188164';
 
 // Store connected clients
 const clients = new Set();
