@@ -42,7 +42,7 @@ EncryptionBuddy is a proof-of-concept application that provides end-to-end encry
 
 5. Update `server.js` with your credentials:
     ```javascript
-    const botToken = 'YOUR_BOT_TOKEN'; // Example could be: Gv7Vm9iTDbQ9hv8+yl9h5V03X2E/qEZz/Bcz47yxh7g=
+    const botToken = 'YOUR_BOT_TOKEN';
     const chatId = 'YOUR_GROUP_CHAT_ID';
     ```
 
@@ -51,7 +51,9 @@ EncryptionBuddy is a proof-of-concept application that provides end-to-end encry
     node server.js
     ```
 
-7. Access the application at `http://localhost:3000`
+7. Access the application at: `http://localhost:3000`.
+
+8. Example shared password key that can be used to get a reference: `Gv7Vm9iTDbQ9hv8+yl9h5V03X2E/qEZz/Bcz47yxh7g=`.
 
 ## Security Considerations
 
