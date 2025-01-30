@@ -12,6 +12,9 @@
             --text-color: #212529;
             --message-bg: #f8f9fa;
             --border-color: #dee2e6;
+            --timestamp-color: #6c757d;
+            --input-bg: #ffffff;
+            --card-bg: #ffffff;
         }
 
         [data-theme="dark"] {
@@ -19,6 +22,9 @@
             --text-color: #f8f9fa;
             --message-bg: #343a40;
             --border-color: #495057;
+            --timestamp-color: #adb5bd;
+            --input-bg: #343a40;
+            --card-bg: #2c3034;
         }
 
         body {
@@ -30,8 +36,9 @@
         }
 
         .card {
-            background-color: var(--bg-color);
+            background-color: var(--card-bg);
             border-color: var(--border-color);
+            color: var(--text-color);
         }
 
         .message-container {
@@ -40,11 +47,13 @@
             border: 1px solid var(--border-color);
             border-radius: 0.375rem;
             background-color: var(--message-bg);
+            color: var(--text-color);
         }
 
         .message {
             padding: 0.75rem;
             border-bottom: 1px solid var(--border-color);
+            color: var(--text-color);
         }
 
         .message:last-child {
@@ -52,7 +61,7 @@
         }
 
         .timestamp {
-            color: #6c757d;
+            color: var(--timestamp-color);
             font-size: 0.8em;
         }
 
@@ -70,10 +79,21 @@
             margin-bottom: 160px;
         }
 
-        .form-control, .form-control:focus {
-            background-color: var(--message-bg);
+        .form-control {
+            background-color: var(--input-bg);
             color: var(--text-color);
             border-color: var(--border-color);
+        }
+
+        .form-control:focus {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            border-color: var(--border-color);
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        .form-control::placeholder {
+            color: var(--timestamp-color);
         }
 
         .theme-switch {
@@ -84,6 +104,24 @@
 
         .hidden {
             display: none;
+        }
+
+        h1, h5, label {
+            color: var(--text-color);
+        }
+
+        /* Custom scrollbar for dark mode */
+        [data-theme="dark"] .message-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        [data-theme="dark"] .message-container::-webkit-scrollbar-track {
+            background: var(--message-bg);
+        }
+
+        [data-theme="dark"] .message-container::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 4px;
         }
     </style>
 </head>
